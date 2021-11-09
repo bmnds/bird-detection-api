@@ -7,10 +7,13 @@ from PIL import Image
 import numpy as np
 import flask
 import io
+import requests
+import os.path
 
 # initialize our Flask application and the Keras model
 app = flask.Flask(__name__)
 model = None
+model_path = "../models/resnet50.model.bruno.h5"
 classes = ['RED HEADED DUCK',
            'PINK ROBIN',
            'RED FACED CORMORANT',
@@ -43,12 +46,21 @@ classes = ['RED HEADED DUCK',
            'RED WINGED BLACKBIRD']
 
 
+def download_model():
+    if not os.path.exists(model_path):
+        print("baixando o modelo...")
+        url = 'https://storage.googleapis.com/bird-detection-api/resnet50.model.bruno.h5'
+        r = requests.get(url, allow_redirects=True)
+        open(model_path, 'wb').write(r.content)
+        print("download concluído...")
+
+
 def load_custom_model():
     # load the pre-trained Keras model (here we are using a model
     # pre-trained on ImageNet and provided by Keras, but you can
     # substitute in your own networks just as easily)
     global model
-    model = load_model('../models/resnet50.model.bruno.h5')
+    model = load_model(model_path)
 
 
 def prepare_image(image, target):
@@ -115,6 +127,7 @@ def pretty_print_preds(preds):
     return bird_dict
 
 
+download_model()
 load_custom_model()
 
 # if this is the main thread of execution first load the model and

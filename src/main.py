@@ -7,8 +7,10 @@ import flask
 import io
 import requests
 import os.path
+from functools import wraps
 
 app = flask.Flask(__name__)
+app.config['API_KEY'] = os.environ.get('API_KEY')
 model = None
 model_path = "../models/resnet50.model.bruno.h5"
 classes = ['RED HEADED DUCK',
@@ -42,6 +44,22 @@ classes = ['RED HEADED DUCK',
            'HAWAIIAN GOOSE',
            'RED WINGED BLACKBIRD']
 
+def token_required(f):
+    '''
+    Decorator to reject requests without the token
+    '''
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        if 'X-API-KEY' not in flask.request.headers:
+            return 'missing header X-API-KEY', 401
+        
+        token = flask.request.headers['X-API-KEY']
+        if not token or token != app.config['API_KEY']:
+            return 'invalid X-API-KEY', 401
+        
+        return f(*args, **kwargs)
+    return decorator
+
 def download_model():
     if not os.path.exists(model_path):
         print("baixando o modelo...")
@@ -68,6 +86,7 @@ def prepare_image(image, target):
 
 
 @app.route("/predict", methods=["POST"])
+@token_required
 def predict():
     data = {"success": False}
 

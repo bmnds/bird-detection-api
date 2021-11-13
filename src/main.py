@@ -11,8 +11,10 @@ from functools import wraps
 
 app = flask.Flask(__name__)
 app.config['API_KEY'] = os.environ.get('API_KEY')
+
 model = None
 model_path = "../models/resnet50.model.bruno.h5"
+
 classes = ['RED HEADED DUCK',
            'PINK ROBIN',
            'RED FACED CORMORANT',
@@ -61,11 +63,30 @@ def token_required(f):
     return decorator
 
 def download_model():
+    '''
+    @deprecated
+    Faz o download do modelo a partir de uma url pública
+    '''
     if not os.path.exists(model_path):
         print("baixando o modelo...")
         url = 'https://storage.googleapis.com/bird-detection-api/resnet50.model.bruno.h5'
         r = requests.get(url, allow_redirects=True)
         open(model_path, 'wb').write(r.content)
+        print("download concluído...")
+
+def download_model_secure():
+    '''
+    Baixa o modelo do Google Cloud Storage após autenticação
+    '''
+    if not os.path.exists(model_path):
+        from google.cloud import storage
+        # Utiliza automaticamente as credenciais definidas no ambiente GCP
+        client = storage.Client()
+        
+        print("baixando o modelo...")
+        gsutil_uri = 'gs://bird-detection-api/resnet50.model.bruno.h5'
+        with open(model_path, 'wb') as file_obj:
+            client.download_blob_to_file(gsutil_uri, file_obj)
         print("download concluído...")
 
 
@@ -88,6 +109,12 @@ def prepare_image(image, target):
 @app.route("/predict", methods=["POST"])
 @token_required
 def predict():
+    '''
+    Serviço para predição da espécie do pássaro a partir de uma imagem
+    O resultado é a espécie vencedora e sua probabilidade, 
+        bem como a lista das demais possíveis espécies detectadas
+    Requisições sem uma chave de api válida serão rejeitadas
+    '''
     data = {"success": False}
 
     if flask.request.method == "POST":
@@ -125,7 +152,8 @@ def to_dict(preds):
 
 
 # model exceeded 200mb and had to be hosted on google cloud storage
-download_model()
+#download_model()
+download_model_secure()
 
 load_custom_model()
 
